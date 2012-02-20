@@ -17,7 +17,7 @@ struct eevent_t
     enum eevent_type_id ee_type;
     unsigned int ee_extra;
     unsigned int ee_vol;
-    unsigned int ee_cur;
+    unsigned int ee_curr;
     unsigned long long time;
 };
 
