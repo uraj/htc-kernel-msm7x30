@@ -136,4 +136,6 @@ static int batt_notifier_call_chain(unsigned long val, void *v)
 extern unsigned int batt_get_status(enum power_supply_property psp);
 extern int htc_battery_charger_disable(void);
 
+extern void get_fresh_batt_info(unsigned int *fresh_vol, unsigned int *fresh_curr);
+
 #endif

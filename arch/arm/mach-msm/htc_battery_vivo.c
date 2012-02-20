@@ -1840,6 +1840,16 @@ static int __init htc_battery_init(void)
 	return 0;
 }
 
+// elogk
+void get_fresh_batt_info(unsigned int *fresh_vol, unsigned int *fresh_curr)
+{
+    update_batt_info();
+    *fresh_vol = htc_batt_info.rep.batt_vol;
+    *fresh_curr = htc_batt_info.rep.batt_current;
+    return;
+}
+// elogk
+
 module_init(htc_battery_init);
 MODULE_DESCRIPTION("HTC Battery Driver");
 MODULE_LICENSE("GPL");
