@@ -5,6 +5,8 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 
+#include <mach/htc_battery.h>
+
 #include <asm/uaccess.h>
 
 #define ELOG_BUF_LEN (1U << CONFIG_ELOG_BUF_SHIFT)
@@ -21,6 +23,8 @@ static unsigned int elog_end = 0;
 
 asmlinkage int elogk(struct eevent_t *eevent)
 {
+    get_fresh_batt_info(&(eevent->ee_vol), &(eevent->ee_curr));
+    
     mutex_lock(&elog_rw_mutex);
     
     ELOG_BUF(elog_end) = *eevent;

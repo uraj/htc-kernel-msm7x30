@@ -16,8 +16,8 @@ struct eevent_t
 {
     enum eevent_type_id ee_type;
     unsigned int ee_extra;
-    unsigned int voltage;
-    unsigned int current;
+    unsigned int ee_vol;
+    unsigned int ee_cur;
     unsigned long long time;
 };
 
@@ -26,6 +26,6 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-int elogk(struct eevent_t *eevent);
+extern int elogk(struct eevent_t *eevent);
 
 #endif
