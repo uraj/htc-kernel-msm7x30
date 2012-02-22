@@ -2,6 +2,7 @@
 #define _LINUX_ELOGK_H
 
 #include <linux/types.h>
+
 /*
  * 'elogk.h' contans the function prototypes and data structures
  * used to log energy events in the kernel.
@@ -9,7 +10,8 @@
 
 enum eevent_type_id
 {
-    LCD_BRIGHTNESS_CHANGE = 0,
+    LCD_BRIGHTNESS = 0,
+    CPUFREQ = 1,
 };
 
 struct eevent_t
@@ -26,6 +28,6 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern int elogk(struct eevent_t *eevent);
+extern void elogk(struct eevent_t *eevent);
 
 #endif

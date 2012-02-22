@@ -4,10 +4,14 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/jiffies.h>
 
 #include <mach/htc_battery.h>
 
 #include <asm/uaccess.h>
+#include <asm/param.h>
+
+#define tick_to_millsec(ticks) ((ticks) * 1000 / HZ)
 
 #define ELOG_BUF_LEN (1U << CONFIG_ELOG_BUF_SHIFT)
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
@@ -21,9 +25,10 @@ DEFINE_MUTEX(elog_rw_mutex);
 static unsigned int elog_start = 0;
 static unsigned int elog_end = 0;
 
-asmlinkage int elogk(struct eevent_t *eevent)
+void elogk(struct eevent_t *eevent)
 {
     get_fresh_batt_info(&(eevent->ee_vol), &(eevent->ee_curr));
+    eevent->time = tick_to_millsec(jiffies);
     
     mutex_lock(&elog_rw_mutex);
     
@@ -33,7 +38,7 @@ asmlinkage int elogk(struct eevent_t *eevent)
         elog_start = elog_end - ELOG_BUF_LEN;
 
     mutex_unlock(&elog_rw_mutex);
-    return 0;
+    return;
 }
 
 static int elog_open(struct inode *inode, struct file *file)
