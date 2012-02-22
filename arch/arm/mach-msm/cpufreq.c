@@ -29,6 +29,11 @@
 
 #include "acpuclock.h"
 
+// elogk
+#include <linux/elogk.h>
+#include <linux/delay.h>
+// elogk
+
 #ifdef CONFIG_SMP
 struct cpufreq_work_struct {
 	struct work_struct work;
@@ -55,18 +60,33 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 {
 	int ret = 0;
 	struct cpufreq_freqs freqs;
-
+    struct eevent_t eevent;
+    
+    eevent.ee_type = CPUFREQ;
+    eevent.ee_extra = new_freq;
+    
 	freqs.old = policy->cur;
 	freqs.new = new_freq;
 	freqs.cpu = policy->cpu;
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+    
+    preempt_disable();
+    
 #ifdef CONFIG_ARCH_MSM8X60
 	ret = acpuclk_set_rate(policy->cpu, new_freq, SETRATE_CPUFREQ);
 #else
 	ret = acpuclk_set_rate(new_freq * 1000, SETRATE_CPUFREQ);
 #endif
 	if (!ret)
+    {
+        udelay(policy->cpuinfo.transition_latency / 1000);
+        elogk(&eevent);
+        preempt_enable();
+        
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+    }
+    else
+        preempt_enable();
 
 	return ret;
 }
