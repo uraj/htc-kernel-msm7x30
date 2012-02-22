@@ -39,9 +39,7 @@
 
 // elogk
 #include <linux/elogk.h>
-#include <linux/jiffies.h>
 #include <linux/preempt.h>
-#include <mach/htc_battery.h>
 // elogk
 
 #if 1
@@ -521,17 +519,14 @@ static void vivow_set_brightness(struct led_classdev *led_cdev,
 	}
     
     // elogk
-    eevent.ee_type = LCD_BRIGHTNESS_CHANGE;
+    eevent.ee_type = LCD_BRIGHTNESS;
     eevent.ee_extra = val;
-    eevent.time = jiffies;
     elogk(&eevent);
+    preempt_enable();
     // elogk
     
 	vivow_brightness_value = val;
 	mutex_unlock(&cabc.lock);
-    // elogk
-    preempt_enable();
-    // elogk
 }
 
 static enum led_brightness
