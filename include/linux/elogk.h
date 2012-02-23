@@ -8,19 +8,17 @@
  * used to log energy events in the kernel.
  */
 
-enum eevent_type_id
-{
-    LCD_BRIGHTNESS = 0,
-    CPUFREQ = 1,
-};
+#define EE_LCD_BRIGHTNESS 0
+#define EE_CPU_FREQ       1
+#define EE_COUNT          2
 
 struct eevent_t
 {
-    enum eevent_type_id ee_type;
-    unsigned int ee_extra;
+    unsigned short ee_type;
+    unsigned short ee_extra;
     unsigned int ee_vol;
     unsigned int ee_curr;
-    unsigned long long time;
+    unsigned int time;
 };
 
 /**
