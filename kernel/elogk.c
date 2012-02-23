@@ -5,13 +5,14 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/jiffies.h>
+#include <linux/proc_fs.h>
 
 #include <mach/htc_battery.h>
 
 #include <asm/uaccess.h>
 #include <asm/param.h>
 
-#define tick_to_millsec(ticks) ((ticks) * 1000 / HZ)
+#define tick_to_millsec(n) ((n) * 1000 / HZ)
 
 #define ELOG_BUF_LEN (1U << CONFIG_ELOG_BUF_SHIFT)
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
@@ -122,3 +123,67 @@ static int __init elog_init(void)
     return 0;
 }
 device_initcall(elog_init);
+
+
+////////////////// PROC FS ////////////////////
+struct eevent_type_desc
+{
+    unsigned int id;
+    const char const *desc;
+};
+
+static struct eevent_type_desc __ee_t_desc[] =
+{
+    [EE_LCD_BRIGHTNESS] = {.id = EE_LCD_BRIGHTNESS, .desc = "LCD Brightness"},
+    [EE_CPU_FREQ] = {.id = EE_CPU_FREQ, .desc = "CPU Frequency"}
+};
+
+static int proc_read_elog_desc(char *page, char **start, off_t offset, int count, int *eof, void *data)  
+{
+    static char buf[2048];
+    int i, len;
+    
+    if(offset  > 0){
+        return 0;
+    }
+    
+    for(len = i = 0; i < EE_COUNT; ++i)
+    {        
+        len += sprintf(buf + len, "%s\t%x\n",
+                       __ee_t_desc[i].desc,
+                       __ee_t_desc[i].id);
+    }
+    
+    if(len >= 2048)
+        return 0;
+    
+    buf[len] = 0;
+    
+    memcpy(page, buf, len);
+    
+    *start = page;
+    
+    return len;
+}
+
+static int __init init_elog_desc(void)
+{
+    struct proc_dir_entry *elog_desc_file;
+    
+    elog_desc_file = create_proc_read_entry("elogdesc", 0444, NULL, proc_read_elog_desc, NULL);
+    
+    if(elog_desc_file == NULL)
+        return -ENOMEM;
+    else
+        return 0;
+}
+
+static void __exit exit_elog_desc(void)
+{    
+    remove_proc_entry("elogdesc", NULL);
+}
+
+module_init(init_elog_desc);
+module_exit(exit_elog_desc);
+
+MODULE_LICENSE("GPL");
