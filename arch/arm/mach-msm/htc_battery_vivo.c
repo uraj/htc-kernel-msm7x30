@@ -55,8 +55,13 @@ enum {
 	HTC_BATT_DEBUG_USB_NOTIFY = 1U << 4,
 	HTC_BATT_DEBUG_SMEM = 1U << 5,
 };
+/*
 static int htc_batt_debug_mask = HTC_BATT_DEBUG_M2A_RPC | HTC_BATT_DEBUG_A2M_RPC
 	| HTC_BATT_DEBUG_UEVT | HTC_BATT_DEBUG_USB_NOTIFY | HTC_BATT_DEBUG_SMEM;
+*/
+static int htc_batt_debug_mask = HTC_BATT_DEBUG_M2A_RPC | HTC_BATT_DEBUG_A2M_RPC
+    | HTC_BATT_DEBUG_USB_NOTIFY | HTC_BATT_DEBUG_SMEM;
+
 module_param_named(debug_mask, htc_batt_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define BATT_LOG(x...) do { \
