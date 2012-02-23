@@ -62,7 +62,7 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 	struct cpufreq_freqs freqs;
     struct eevent_t eevent;
     
-    eevent.ee_type = CPUFREQ;
+    eevent.ee_type = EE_CPU_FREQ;
     eevent.ee_extra = new_freq;
     
 	freqs.old = policy->cur;
