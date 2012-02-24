@@ -15,9 +15,10 @@
 struct eevent_t
 {
     unsigned short ee_type;
-    unsigned short ee_extra;
-    unsigned int ee_vol;
-    unsigned int ee_curr;
+    unsigned short ee_reserved;
+    unsigned int ee_extra;
+    unsigned short ee_vol;
+    unsigned short ee_curr;
     unsigned int time;
 };
 
