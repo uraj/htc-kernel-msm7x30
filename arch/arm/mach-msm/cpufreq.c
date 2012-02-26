@@ -80,7 +80,7 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 	if (!ret)
     {
         udelay(policy->cpuinfo.transition_latency / 1000);
-        elogk(&eevent);
+        elogk(&eevent, 0);
         preempt_enable();
         
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);

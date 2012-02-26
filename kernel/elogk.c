@@ -26,9 +26,11 @@ DEFINE_MUTEX(elog_rw_mutex);
 static unsigned int elog_start = 0;
 static unsigned int elog_end = 0;
 
-void elogk(struct eevent_t *eevent)
+void elogk(struct eevent_t *eevent, int if_fresh_binfo)
 {
-    get_fresh_batt_info(&(eevent->ee_vol), &(eevent->ee_curr));
+    if(if_fresh_binfo)
+        get_fresh_batt_info(&(eevent->ee_vol), &(eevent->ee_curr));
+    
     eevent->time = tick_to_millsec(jiffies);
     
     mutex_lock(&elog_rw_mutex);

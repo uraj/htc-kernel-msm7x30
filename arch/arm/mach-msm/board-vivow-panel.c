@@ -521,7 +521,7 @@ static void vivow_set_brightness(struct led_classdev *led_cdev,
     // elogk
     eevent.ee_type = EE_LCD_BRIGHTNESS;
     eevent.ee_extra = val;
-    elogk(&eevent);
+    elogk(&eevent, 1);
     preempt_enable();
     // elogk
     

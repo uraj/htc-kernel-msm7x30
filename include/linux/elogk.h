@@ -27,6 +27,6 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern void elogk(struct eevent_t *eevent);
+extern void elogk(struct eevent_t *eevent, int if_fresh_binfo);
 
 #endif
