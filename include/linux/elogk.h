@@ -20,7 +20,7 @@ struct eevent_t
     unsigned short ee_vol;
     unsigned short ee_curr;
     unsigned int time;
-};
+} __attribute__ ((packed));
 
 /**
  * Write the energy event into the buffer. This function is not
