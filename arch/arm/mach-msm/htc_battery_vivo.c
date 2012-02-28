@@ -1850,7 +1850,10 @@ void get_fresh_batt_info(unsigned short *fresh_vol, unsigned short *fresh_curr)
 {
     update_batt_info();
     *fresh_vol = (unsigned short)htc_batt_info.rep.batt_vol;
-    *fresh_curr = (unsigned short)htc_batt_info.rep.batt_current;
+    if(htc_batt_info.rep.eval_current < 0)
+        *fresh_curr = (unsigned short)(0-htc_batt_info.rep.eval_current);
+    else
+        *fresh_curr = (unsigned short)(htc_batt_info.rep.eval_current);
     return;
 }
 // elogk
