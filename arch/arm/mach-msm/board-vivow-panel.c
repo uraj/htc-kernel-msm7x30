@@ -37,11 +37,6 @@
 #include "devices.h"
 #include "proc_comm.h"
 
-// elogk
-#include <linux/elogk.h>
-#include <linux/preempt.h>
-// elogk
-
 #if 1
 #define B(s...) printk(s)
 #else
@@ -486,10 +481,6 @@ static void vivow_set_brightness(struct led_classdev *led_cdev,
 	unsigned int shrink_br = val;
 	struct mddi_cmd *pcmd = hitachi_renesas_backlight_cmd;
 
-    // elogk
-    struct eevent_t eevent;
-    // elogk
-    
 	if (test_bit(GATE_ON, &cabc.status) == 0)
 		return;
 	shrink_br = vivow_shrink_pwm(val);
@@ -500,9 +491,7 @@ static void vivow_set_brightness(struct led_classdev *led_cdev,
 	}
 
 	mutex_lock(&cabc.lock);
-    // elogk
-    preempt_disable();
-    // elogk
+
 	if(panel_type == PANEL_VIVOW_HITACHI) {
 		pcmd->vals[4] = shrink_br;
 		client->remote_write(client, 0x04, 0xB0);
@@ -517,13 +506,6 @@ static void vivow_set_brightness(struct led_classdev *led_cdev,
 		client->remote_write(client, 0x00, 0x5500);
 		client->remote_write(client, shrink_br, 0x5100);
 	}
-    
-    // elogk
-    eevent.ee_type = EE_LCD_BRIGHTNESS;
-    eevent.ee_extra = val;
-    elogk(&eevent, 1);
-    preempt_enable();
-    // elogk
     
 	vivow_brightness_value = val;
 	mutex_unlock(&cabc.lock);

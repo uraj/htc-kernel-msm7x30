@@ -8,10 +8,6 @@
  * used to log energy events in the kernel.
  */
 
-#define EE_LCD_BRIGHTNESS 0
-#define EE_CPU_FREQ       1
-#define EE_COUNT          2
-
 struct eevent_t
 {
     unsigned short ee_type;
