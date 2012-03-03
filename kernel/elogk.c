@@ -1,6 +1,6 @@
 #include <linux/elogk.h>
+#include <linux/errno.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -12,25 +12,121 @@
 #include <asm/uaccess.h>
 #include <asm/param.h>
 
-#define tick_to_millsec(n) ((n) * 1000 / HZ)
+#define HZ100 /* this is the defualt configuration for ARM architecture */
 
-#define ELOG_BUF_LEN (1U << CONFIG_ELOG_BUF_SHIFT)
+#ifdef HZ100
+#define tick_to_millsec(n) ((n) * 10)
+#else
+#define tick_to_millsec(n) (((n) * 1000) / HZ
+#endif
+
+#define ELOG_BUF_LEN (1U << (CONFIG_ELOG_BUF_SHIFT - 1))
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
-#define ELOG_BUF(idx) (elog_buf[(idx) & ELOG_BUF_MASK])
 
-struct eevent_t elog_buf[ELOG_BUF_LEN];
+__u8 elog_buf1[ELOG_BUF_LEN];
+__u8 elog_buf2[ELOG_BUF_LEN];
+#define LOG1_MAGIC          0x0ade1081
+#define LOG2_MAGIC          0x0ade1082
 
+/* only one user process can open elog pool */
 DEFINE_MUTEX(elog_dev_mutex);
 
-DEFINE_MUTEX(elog_rw_mutex);
-static unsigned int elog_start = 0;
-static unsigned int elog_end = 0;
-
-void elogk(struct eevent_t *eevent, int if_fresh_binfo)
+struct elogk_suit
 {
-    if(if_fresh_binfo)
-        get_fresh_batt_info(&(eevent->ee_vol), &(eevent->ee_curr));
+    struct mutex mutex;
+    size_t w_off;
+    size_t r_off;
+    __u8* elogk_buf;
+};
+
+#define DEFINE_ELOGK_SUIT(NAME)                     \
+    static __u8 __buf_ ## NAME[ELOG_BUF_LEN];       \
+    static struct elogk_suit NAME =                 \
+    {                                               \
+        .mutex = __MUTEX_INITIALIZER(NAME .mutex),  \
+        .w_off = 0,                                 \
+        .r_off = 0,                                 \
+        .elogk_buf = __buf_ ## NAME,                \
+    };
+
+DEFINE_ELOGK_SUIT(elogk1)
+DEFINE_ELOGK_SUIT(elogk2)
+
+/*
+ * grabs the length of the payload of the next entry starting
+ * from 'off'. caller needs to hold elog->mutex.
+ */
+static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
+{
+	__u16 val;
+
+	switch (ELOG_BUF_LEN - off)
+    {
+        case 1:
+            memcpy(&val, elog->elogk_buf + off, 1);
+            memcpy(((__u8 *) &val) + 1, elog->elogk_buf, 1);
+            break;
+        default:
+            memcpy(&val, elog->elogk_buf + off, 2);
+	}
+
+	return sizeof(struct eevent_t) + val;
+}
+
+/*
+ * return the offset of the first valid entry 'len' bytes after 'off'.
+ * caller must hold elog->mutex.
+ */
+static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
+{
+	size_t count = 0;
+
+	do {
+		size_t nr = get_entry_len(elog, off);
+		off = (off + nr) & ELOG_BUF_MASK;
+		count += nr;
+	} while (count < len);
+
+	return off;
+}
+
+/*
+ * write the content of a log entry to the buff. caller must
+ * hold elog->mutex
+ */
+static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
+{
+    ssize_t ret;
+    size_t entry_len, buffer_tail, __w_off;
+
+    entry_len = sizeof(struct eevent_t) + eevent->len;
+    __w_off = (elog->w_off) & ELOG_BUF_MASK;
+    buffer_tail = ELOG_BUF_LEN - __w_off;
     
+    elog->w_off += entry_len;
+    /*
+     * if buffer overflows, pull the read pointer foward to the first
+     * readable entry
+     */
+    if((elog->w_off - elog->r_off) > ELOG_BUF_LEN)
+        elog->r_off = elog->w_off - ELOG_BUF_LEN
+            + get_next_entry(elog, __w_off, entry_len);
+    
+    if(buffer_tail >= entry_len)
+        memcpy(elog->elogk_buf + __w_off, eevent, entry_len);
+    else /* ring buffer reaches the end, write operation split into 2 memcpy */
+    {
+        memcpy(elog->elogk_buf + __w_off, eevent, buffer_tail);
+        memcpy(elog->elogk_buf,
+               ((__u8 *)eevent) + buffer_tail,
+               entry_len - buffer_tail);
+    }
+    
+    return;
+}
+
+void elogk_pre_syscall(struct eevent_t *eevent)
+{
     eevent->time = tick_to_millsec(jiffies);
     
     mutex_lock(&elog_rw_mutex);
@@ -43,6 +139,10 @@ void elogk(struct eevent_t *eevent, int if_fresh_binfo)
     mutex_unlock(&elog_rw_mutex);
     return;
 }
+
+void elogk_post_syscall(struct eevent_t *eevent)
+{}
+
 
 static int elog_open(struct inode *inode, struct file *file)
 {

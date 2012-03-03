@@ -3,19 +3,18 @@
 
 #include <linux/types.h>
 
-/*
+/**
  * 'elogk.h' contans the function prototypes and data structures
  * used to log energy events in the kernel.
  */
 
 struct eevent_t
 {
-    unsigned short ee_type;
-    unsigned short ee_reserved;
-    unsigned int ee_extra;
-    unsigned short ee_vol;
-    unsigned short ee_curr;
-    unsigned int time;
+    __u16 len;              /* length of the payload */
+    __u16 syscall_no;       /* system call number */
+    __u32 time;             /* timestamp for the entry */
+    __u16 current;          /* system loading current */
+    char  params[0]         /* the entry's payload (syscall params) */
 } __attribute__ ((packed));
 
 /**
@@ -23,6 +22,7 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern void elogk(struct eevent_t *eevent, int if_fresh_binfo);
+extern void elogk_pre_syscall(struct eevent_t *eevent);
+extern void elogk_post_syscall(struct eevent_t *eevent);
 
 #endif
