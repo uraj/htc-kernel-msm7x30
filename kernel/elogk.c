@@ -23,30 +23,24 @@
 #define ELOG_BUF_LEN (1U << (CONFIG_ELOG_BUF_SHIFT - 1))
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
 
-__u8 elog_buf1[ELOG_BUF_LEN];
-__u8 elog_buf2[ELOG_BUF_LEN];
-#define LOG1_MAGIC          0x0ade1081
-#define LOG2_MAGIC          0x0ade1082
-
-/* only one user process can open elog pool */
-DEFINE_MUTEX(elog_dev_mutex);
-
 struct elogk_suit
 {
-    struct mutex mutex;
+    struct mutex rw_mutex;
+    struct mutex open_mutex;
     size_t w_off;
     size_t r_off;
     __u8* elogk_buf;
 };
 
-#define DEFINE_ELOGK_SUIT(NAME)                     \
-    static __u8 __buf_ ## NAME[ELOG_BUF_LEN];       \
-    static struct elogk_suit NAME =                 \
-    {                                               \
-        .mutex = __MUTEX_INITIALIZER(NAME .mutex),  \
-        .w_off = 0,                                 \
-        .r_off = 0,                                 \
-        .elogk_buf = __buf_ ## NAME,                \
+#define DEFINE_ELOGK_SUIT(NAME)                                 \
+    static __u8 __buf_ ## NAME[ELOG_BUF_LEN];                   \
+    static struct elogk_suit NAME =                             \
+    {                                                           \
+        .rw_mutex = __MUTEX_INITIALIZER(NAME .rw_mutex),        \
+        .open_mutex = __MUTEX_INITIALIZER(NAME .open_mutex),    \
+        .w_off = 0,                                             \
+        .r_off = 0,                                             \
+        .elogk_buf = __buf_ ## NAME,                            \
     };
 
 DEFINE_ELOGK_SUIT(elogk1)
@@ -54,7 +48,7 @@ DEFINE_ELOGK_SUIT(elogk2)
 
 /*
  * grabs the length of the payload of the next entry starting
- * from 'off'. caller needs to hold elog->mutex.
+ * from 'off'. caller needs to hold elog->rw_mutex.
  */
 static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
 {
@@ -75,28 +69,29 @@ static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
 
 /*
  * return the offset of the first valid entry 'len' bytes after 'off'.
- * caller must hold elog->mutex.
+ * caller must hold elog->rw_mutex.
  */
 static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
 {
 	size_t count = 0;
 
-	do {
+	do
+    {
 		size_t nr = get_entry_len(elog, off);
 		off = (off + nr) & ELOG_BUF_MASK;
 		count += nr;
-	} while (count < len);
+	}
+    while (count < len);
 
 	return off;
 }
 
 /*
  * write the content of a log entry to the buff. caller must
- * hold elog->mutex
+ * hold elog->rw_mutex
  */
 static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
 {
-    ssize_t ret;
     size_t entry_len, buffer_tail, __w_off;
 
     entry_len = sizeof(struct eevent_t) + eevent->len;
@@ -108,11 +103,11 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
      * if buffer overflows, pull the read pointer foward to the first
      * readable entry
      */
-    if((elog->w_off - elog->r_off) > ELOG_BUF_LEN)
+    if ((elog->w_off - elog->r_off) > ELOG_BUF_LEN)
         elog->r_off = elog->w_off - ELOG_BUF_LEN
             + get_next_entry(elog, __w_off, entry_len);
     
-    if(buffer_tail >= entry_len)
+    if (buffer_tail >= entry_len)
         memcpy(elog->elogk_buf + __w_off, eevent, entry_len);
     else /* ring buffer reaches the end, write operation split into 2 memcpy */
     {
@@ -125,70 +120,109 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
     return;
 }
 
-void elogk_pre_syscall(struct eevent_t *eevent)
+void elogk(struct eevent_t *eevent)
 {
+    struct elogk_suit *elog;
+    
     eevent->time = tick_to_millsec(jiffies);
-    
-    mutex_lock(&elog_rw_mutex);
-    
-    ELOG_BUF(elog_end) = *eevent;
-    elog_end++;
-    if(elog_end - elog_start > ELOG_BUF_LEN)
-        elog_start = elog_end - ELOG_BUF_LEN;
 
-    mutex_unlock(&elog_rw_mutex);
+    if (mutex_trylock(&elogk1.rw_mutex))
+        elog = &elogk1;
+    else
+    {
+        mutex_lock(&elogk2.rw_mutex);
+        elog = &elogk2;
+    }
+
+    elogk_write(eevent, elog);
+
+    mutex_unlock(&elog->rw_mutex);
     return;
 }
 
-void elogk_post_syscall(struct eevent_t *eevent)
-{}
-
+static struct elogk_suit *get_elog_from_minor(int);
 
 static int elog_open(struct inode *inode, struct file *file)
 {
-    int ret;
-
+    struct elogk_suit *elog;
+    int ret, minor;
+    
     ret = nonseekable_open(inode, file);
-    if(ret)
+    if (ret)
         return ret;
 
-    if(file->f_mode != FMODE_READ)
+    if (file->f_mode != FMODE_READ)
         return -EROFS;
 
-    if(!mutex_trylock(&elog_dev_mutex))
+    minor = MINOR(inode->i_rdev);
+    elog = get_elog_from_minor(minor);
+    if(elog == NULL)
+        return -ENODEV;
+
+    if (!mutex_trylock(&elog->open_mutex))
         return -EBUSY;
 
+    file->private_data = elog;
+    
     return 0;
 }
 
 static ssize_t elog_read(struct file *file, char __user *buf,
                          size_t count, loff_t *pos)
 {
+    struct elogk_suit *elog = file->private_data;
+    size_t len, __r_off, __count = 0;
     ssize_t ret;
-    ssize_t __count;
     
-    __count = count - (count % sizeof(struct eevent_t));
+    mutex_lock(&elog->rw_mutex);
     
-    mutex_lock(&elog_rw_mutex);
-    ret = sizeof(struct eevent_t) * (elog_end - elog_start);
-    __count = __count < ret ? __count : ret;
-    ret = copy_to_user(buf,
-                       elog_buf + (elog_start & ELOG_BUF_MASK),
-                       __count);
-    if(!ret)
-        elog_start += __count / sizeof(struct eevent_t);
+    while (elog->r_off + __count < elog->w_off)
+    {
+        __r_off = (elog->r_off + __count) & ELOG_BUF_MASK;
+        len = get_entry_len(elog, __r_off);
+        __count += len;
+        if (__count > count)
+        {
+            __count -= len;
+            break;
+        }
+    }
     
-    mutex_unlock(&elog_rw_mutex);
+    ret = __count;
+    /*
+     * Since we are using a ring buffer, one read may need to be
+     * split into two disjoint operations due to reaching the end
+     * of the buffer.
+     */
+    __r_off = elog->r_off & ELOG_BUF_MASK;
+    len = min(__count, ELOG_BUF_LEN - __r_off);
+    if (copy_to_user(buf, elog->elogk_buf + __r_off, len))
+    {
+        ret = -EFAULT;
+        goto out;
+    }
+    
+    if(len != __count)
+        if (copy_to_user(buf + len, elog->elogk_buf, __count - len))
+        {
+            ret = -EFAULT;
+            goto out;
+        }
 
-    if(ret)
-        return -EFAULT;
-    else
-        return __count;
+    elog->r_off += __count;
+
+  out:
+    mutex_unlock(&elog->rw_mutex);
+    
+    return ret;
 }
 
 static int elog_release(struct inode *ignored, struct file *file)
 {
-    mutex_unlock(&elog_dev_mutex);
+    struct elogk_suit *elog;
+
+    elog = file->private_data;
+    mutex_unlock(&elog->open_mutex);
     return 0;
 }
 
@@ -200,92 +234,44 @@ static const struct file_operations elog_fops =
     .release = elog_release,
 };
 
-static struct miscdevice elog_dev =
+static struct miscdevice elog1_dev =
 {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog",
+    .name = "elog1",
     .fops = &elog_fops,
     .parent = NULL,
 };
+
+static struct miscdevice elog2_dev =
+{
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "elog2",
+    .fops = &elog_fops,
+    .parent = NULL,
+};
+
+static struct elogk_suit *get_elog_from_minor(int minor)
+{
+    if (minor == elog1_dev.minor)
+        return &elogk1;
+    if (minor == elog2_dev.minor)
+        return &elogk2;
+    return NULL;
+}
 
 static int __init elog_init(void)
 {
     int ret;
 
-    ret = misc_register(&elog_dev);
-    if(unlikely(ret))
-    {
-        printk(KERN_ERR "elog: failed to regsiter misc device for elog!\n");
+    ret = misc_register(&elog1_dev);
+    if (unlikely(ret))
+        goto out;
+
+    ret = misc_register(&elog2_dev);
+    if (unlikely(ret))
+        goto out;
+    
+  out:
         return ret;
-    }
-
-    printk(KERN_INFO "elog: created %lu bytes log\n ",
-           (unsigned long) sizeof(elog_buf));
-
-    return 0;
 }
 device_initcall(elog_init);
-
-
-////////////////// PROC FS ////////////////////
-struct eevent_type_desc
-{
-    unsigned int id;
-    const char const *desc;
-};
-
-static struct eevent_type_desc __ee_t_desc[] =
-{
-    [EE_LCD_BRIGHTNESS] = {.id = EE_LCD_BRIGHTNESS, .desc = "LCD Brightness"},
-    [EE_CPU_FREQ] = {.id = EE_CPU_FREQ, .desc = "CPU Frequency"}
-};
-
-static int proc_read_elog_desc(char *page, char **start, off_t offset, int count, int *eof, void *data)  
-{
-    static char buf[2048];
-    int i, len;
-    
-    if(offset  > 0){
-        return 0;
-    }
-    
-    for(len = i = 0; i < EE_COUNT; ++i)
-    {        
-        len += sprintf(buf + len, "%s\t%x\n",
-                       __ee_t_desc[i].desc,
-                       __ee_t_desc[i].id);
-    }
-    
-    if(len >= 2048)
-        return 0;
-    
-    buf[len] = 0;
-    
-    memcpy(page, buf, len);
-    
-    *start = page;
-    
-    return len;
-}
-
-static int __init init_elog_desc(void)
-{
-    struct proc_dir_entry *elog_desc_file;
-    
-    elog_desc_file = create_proc_read_entry("elogdesc", 0444, NULL, proc_read_elog_desc, NULL);
-    
-    if(elog_desc_file == NULL)
-        return -ENOMEM;
-    else
-        return 0;
-}
-
-static void __exit exit_elog_desc(void)
-{    
-    remove_proc_entry("elogdesc", NULL);
-}
-
-module_init(init_elog_desc);
-module_exit(exit_elog_desc);
-
-MODULE_LICENSE("GPL");

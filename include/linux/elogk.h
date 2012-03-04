@@ -13,8 +13,8 @@ struct eevent_t
     __u16 len;              /* length of the payload */
     __u16 syscall_no;       /* system call number */
     __u32 time;             /* timestamp for the entry */
-    __u16 current;          /* system loading current */
-    char  params[0]         /* the entry's payload (syscall params) */
+    __u32 reserved; /* may used to store system loading current/voltage*/
+    char  params[0];        /* the entry's payload (syscall params) */
 } __attribute__ ((packed));
 
 /**
@@ -22,7 +22,6 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern void elogk_pre_syscall(struct eevent_t *eevent);
-extern void elogk_post_syscall(struct eevent_t *eevent);
+extern void elogk(struct eevent_t *eevent);
 
 #endif
