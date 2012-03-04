@@ -6,18 +6,7 @@
 #include <linux/miscdevice.h>
 #include <linux/proc_fs.h>
 
-#include <mach/htc_battery.h>
-
 #include <asm/uaccess.h>
-#include <asm/param.h>
-
-#define HZ100 /* this is the defualt configuration for ARM architecture */
-
-#ifdef HZ100
-#define tick_to_millsec(n) ((n) * 10)
-#else
-#define tick_to_millsec(n) (((n) * 1000) / HZ
-#endif
 
 #define ELOG_BUF_LEN (1U << (CONFIG_ELOG_BUF_SHIFT - 1))
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
