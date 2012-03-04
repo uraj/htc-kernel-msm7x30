@@ -9,6 +9,20 @@
  * working on.
  */
 
+/*
+ * We choose 3 syscalls to begin with:
+ *   1. open
+ *   2. read
+ *   3. write
+ * Corresponding core subroutines are:
+ *   1. do_sys_open
+ *   2. vfs_read
+ *   3. vfs_write
+ *
+ * Note: do_sys_open is not a exported symbol, while vfs_read and
+ * vfs_write are. What symbols are elected to be exported may be
+ * an interesting question. Figure it out.
+ */
 static void __init etrace_init(void)
 {}
 
