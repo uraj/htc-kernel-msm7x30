@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/jiffies.h>
 #include <linux/proc_fs.h>
 
 #include <mach/htc_battery.h>
@@ -124,7 +123,7 @@ void elogk(struct eevent_t *eevent)
 {
     struct elogk_suit *elog;
     
-    eevent->time = tick_to_millsec(jiffies);
+    ktime_get_ts(&eevent->etime);
 
     if (mutex_trylock(&elogk1.rw_mutex))
         elog = &elogk1;
