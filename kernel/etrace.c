@@ -57,7 +57,7 @@ static void open_handler(unsigned int fd, struct file *file)
     eevent->id = id++;
 
     fpath = d_path(&file->f_path, __buf, STR_BUF_SIZE);
-    if((int) fpath < 0)
+    if(IS_ERR(fpath))
     {
         fpath = "(...)";
         fpath_len = strlen(fpath);
@@ -106,7 +106,7 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
     eevent->id = id++;
 
     fpath = d_path(&arg0->f_path, __buf, STR_BUF_SIZE);
-    if((int) fpath < 0)
+    if(IS_ERR(fpath))
     {
         fpath = "(...)";
         fpath_len = strlen(fpath);
@@ -173,7 +173,7 @@ static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *re
     eevent->id = id++;
 
     fpath = d_path(&arg0->f_path, __buf, STR_BUF_SIZE);
-    if((int) fpath < 0)
+    if(IS_ERR(fpath))
     {
         fpath = "(...)";
         fpath_len = strlen(fpath);
