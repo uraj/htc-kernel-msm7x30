@@ -2,6 +2,7 @@
 #include <linux/kprobes.h>
 #include <linux/kernel.h>
 #include <linux/elogk.h>
+
 /*
  * Our key idea: list every important syscall and instrument their
  * core rountines (i.e., do_vfs_read). By parsing the registers dumped
@@ -24,7 +25,10 @@
  * an interesting question. Figure it out.
  */
 
-#define regs_arg(regs,no)      ((regs)->ARM_r ## no)
+#define regs_arg(regs,no,type)     ((type)((regs)->ARM_r ## no))
+
+/* needed by hooking open, read, write */
+#include <linux/fs.h>
 
 #define EEVENT_OPEN_NO       1
 #define EEVENT_READ_NO       2
@@ -38,7 +42,7 @@ static void open_handler(unsigned int fd, struct file *file)
 {
     static __s16 id = 0;
     static char buf[128];
-    struct eevent_t *eevent = (eevent_t *)buf;
+    struct eevent_t *eevent = (struct eevent_t *)buf;
     const unsigned char *fname = file->f_path.dentry->d_name.name;
     unsigned int fname_len = file->f_path.dentry->d_name.len;
     
@@ -48,7 +52,7 @@ static void open_handler(unsigned int fd, struct file *file)
         sprintf(eevent->params, "%u,\"%.*s\"",
                 fd, fname_len, fname);
 
-    elogk(&eevent);
+    elogk(eevent);
 
     jprobe_return();
 }
@@ -58,7 +62,7 @@ static struct jprobe open_jprobe =
     .entry = open_handler,
     .kp =
     {
-        .symbol = "fd_install",
+        .symbol_name = "fd_install",
     },
 };
 
@@ -70,12 +74,12 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
 {
     static __s16 id = 0;
     static char buf[128];
-    struct eevent_t *eevent = (eevent_t *)buf;
+    struct eevent_t *eevent = (struct eevent_t *)buf;
 
-    struct file *arg0 = regs_arg(regs, 0);
-    char *arg1        = regs_arg(regs, 1);
-    size_t arg2       = regs_arg(regs, 2);
-    loff_t *arg3      = regs_arg(regs, 3);
+    struct file *arg0 = regs_arg(regs, 0, struct file *);
+    char *arg1        = regs_arg(regs, 1, char *);
+    size_t arg2       = regs_arg(regs, 2, size_t);
+    loff_t *arg3      = regs_arg(regs, 3, loff_t *);
     
     const unsigned char *fname = arg0->f_path.dentry->d_name.name;
     unsigned int fname_len = arg0->f_path.dentry->d_name.len;
@@ -84,10 +88,10 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
     eevent->syscall_no = EEVENT_READ_NO;
     eevent->id = id++;
     eevent->len =
-        sprintf(eevent->params, "\"%.*s\",%x,%u,%x",
+        sprintf(eevent->params, "\"%.*s\",%p,%u,%p",
                 fname_len, fname, arg1, arg2, arg3);
     
-    elogk(&eevent);
+    elogk(eevent);
     
     return 0;
 }
@@ -95,14 +99,14 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
 static int read_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     static char buf[64];
-    struct eevent_t *eevent = (char *)buf;
+    struct eevent_t *eevent = (struct eevent_t *)buf;
 
     /* negative id for return entry */
     eevent->id = -*((__s16 *)ri->data);
     eevent->syscall_no = EEVENT_READ_NO;
-    event->len = sprintf(event->params, "%d", regs_return_value(regs));
+    eevent->len = sprintf(eevent->params, "%d", (ssize_t)regs_return_value(regs));
     
-    elogk(&eevent);
+    elogk(eevent);
     
     return 0;
 }
@@ -127,12 +131,12 @@ static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *re
 {
     static __s16 id = 0;
     static char buf[128];
-    struct eevent_t *eevent = (eevent_t *)buf;
+    struct eevent_t *eevent = (struct eevent_t *)buf;
 
-    struct file *arg0 = regs_arg(regs, 0);
-    char *arg1        = regs_arg(regs, 1);
-    size_t arg2       = regs_arg(regs, 2);
-    loff_t *arg3      = regs_arg(regs, 3);
+    struct file *arg0 = regs_arg(regs, 0, struct file *);
+    char *arg1        = regs_arg(regs, 1, char *);
+    size_t arg2       = regs_arg(regs, 2, size_t);
+    loff_t *arg3      = regs_arg(regs, 3, loff_t *);
     
     const unsigned char *fname = arg0->f_path.dentry->d_name.name;
     unsigned int fname_len = arg0->f_path.dentry->d_name.len;
@@ -141,10 +145,10 @@ static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *re
     eevent->syscall_no = EEVENT_WRITE_NO;
     eevent->id = id++;
     eevent->len =
-        sprintf(eevent->params, "\"%.*s\",%x,%u,%x",
+        sprintf(eevent->params, "\"%.*s\",%p,%u,%p",
                 fname_len, fname, arg1, arg2, arg3);
     
-    elogk(&eevent);
+    elogk(eevent);
     
     return 0;
 }
@@ -152,14 +156,14 @@ static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *re
 static int write_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     static char buf[64];
-    struct eevent_t *eevent = (char *)buf;
+    struct eevent_t *eevent = (struct eevent_t *)buf;
 
     /* negative id for return entry */
     eevent->id = -*((__s16 *)ri->data);
     eevent->syscall_no = EEVENT_WRITE_NO;
-    event->len = sprintf(event->params, "%d", regs_return_value(regs));
+    eevent->len = sprintf(eevent->params, "%d", (ssize_t)regs_return_value(regs));
     
-    elogk(&eevent);
+    elogk(eevent);
     
     return 0;
 }
@@ -207,7 +211,7 @@ static void __exit etrace_exit(void)
     return;
 }
 
-moduel_init(etrace_init)
-moduel_exit(etrace_exit)
+module_init(etrace_init)
+module_exit(etrace_exit)
 MODULE_LICENSE("GPL");
 

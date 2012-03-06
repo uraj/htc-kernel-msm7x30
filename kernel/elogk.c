@@ -127,6 +127,7 @@ void elogk(struct eevent_t *eevent)
     mutex_unlock(&elog->rw_mutex);
     return;
 }
+EXPORT_SYMBOL(elogk);
 
 static struct elogk_suit *get_elog_from_minor(int);
 
