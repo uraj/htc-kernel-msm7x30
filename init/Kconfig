@@ -24,22 +24,25 @@ config CONSTRUCTORS
 menu "CECA developement"
 
 config ELOG
-	bool "Enable kernel energy event logging"
+	bool "Kernel energy event logging"
 	default n
 
 config ELOG_BUF_SHIFT
 	int "Kernel energy event log buffer length"
-	range 10 15
-	default 12
+	range 15 20
+	default 17
 	help
-	  Select kernel elog buffer length as a power of 2.
+	  Select kernel elog buffer size as a power of 2.
 	  Examples:
-	  	     13 => 8K log entries
-	  	     12 => 4K log entries
-	  	     11 => 2K log entries
-                     10 => 1K log entries
-	  Typiclly, the size of a log entry is 24 bytes, so
-	  memory consumed by 4K log entries will be 96KB
+	  	     19 => 512K
+	  	     18 => 256K
+                     17 => 128K
+                     16 => 64K
+
+config ETRACE
+	tristate "Kernel energy event tracing"
+	depends on ELOG
+
 endmenu
 
 menu "General setup"
