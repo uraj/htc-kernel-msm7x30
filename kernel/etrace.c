@@ -27,6 +27,12 @@
 
 #define regs_arg(regs,no,type)     ((type)((regs)->ARM_r ## no))
 
+#define STR_BUF_SIZE          256
+#define EBUF_SIZE             (STR_BUF_SIZE + sizeof(struct eevent_t))
+#define SBUF_SIZE             32
+
+static char __buf[STR_BUF_SIZE];
+
 /* needed by hooking open, read, write */
 #include <linux/fs.h>
 
@@ -41,16 +47,27 @@
 static void open_handler(unsigned int fd, struct file *file)
 {
     static __s16 id = 0;
-    static char buf[128];
+    static char buf[EBUF_SIZE];
+    char *fpath;
+    int fpath_len;
+    
     struct eevent_t *eevent = (struct eevent_t *)buf;
-    const unsigned char *fname = file->f_path.dentry->d_name.name;
-    unsigned int fname_len = file->f_path.dentry->d_name.len;
     
     eevent->syscall_no = EEVENT_OPEN_NO;
     eevent->id = id++;
+
+    fpath = d_path(&file->f_path, __buf, STR_BUF_SIZE);
+    if((int) fpath < 0)
+    {
+        fpath = "(...)";
+        fpath_len = strlen(fpath);
+    }
+    else
+        fpath_len = strlen(fpath);
+    
     eevent->len =
         sprintf(eevent->params, "%u,\"%.*s\"",
-                fd, fname_len, fname);
+                fd, fpath_len, fpath);
 
     elogk(eevent);
 
@@ -73,7 +90,7 @@ static struct jprobe open_jprobe =
 static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     static __s16 id = 0;
-    static char buf[128];
+    static char buf[EBUF_SIZE];
     struct eevent_t *eevent = (struct eevent_t *)buf;
 
     struct file *arg0 = regs_arg(regs, 0, struct file *);
@@ -81,15 +98,25 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
     size_t arg2       = regs_arg(regs, 2, size_t);
     loff_t *arg3      = regs_arg(regs, 3, loff_t *);
     
-    const unsigned char *fname = arg0->f_path.dentry->d_name.name;
-    unsigned int fname_len = arg0->f_path.dentry->d_name.len;
+    char *fpath;
+    int fpath_len;
     
     *((__s16 *)ri->data) = id;
     eevent->syscall_no = EEVENT_READ_NO;
     eevent->id = id++;
+
+    fpath = d_path(&arg0->f_path, __buf, STR_BUF_SIZE);
+    if((int) fpath < 0)
+    {
+        fpath = "(...)";
+        fpath_len = strlen(fpath);
+    }
+    else
+        fpath_len = strlen(fpath);
+    
     eevent->len =
         sprintf(eevent->params, "\"%.*s\",%p,%u,%p",
-                fname_len, fname, arg1, arg2, arg3);
+                fpath_len, fpath, arg1, arg2, arg3);
     
     elogk(eevent);
     
@@ -98,7 +125,7 @@ static int read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *reg
 
 static int read_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-    static char buf[64];
+    static char buf[SBUF_SIZE];
     struct eevent_t *eevent = (struct eevent_t *)buf;
 
     /* negative id for return entry */
@@ -130,23 +157,33 @@ static struct kretprobe read_kretprobe =
 static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     static __s16 id = 0;
-    static char buf[128];
+    static char buf[EBUF_SIZE];
     struct eevent_t *eevent = (struct eevent_t *)buf;
 
     struct file *arg0 = regs_arg(regs, 0, struct file *);
     char *arg1        = regs_arg(regs, 1, char *);
     size_t arg2       = regs_arg(regs, 2, size_t);
     loff_t *arg3      = regs_arg(regs, 3, loff_t *);
-    
-    const unsigned char *fname = arg0->f_path.dentry->d_name.name;
-    unsigned int fname_len = arg0->f_path.dentry->d_name.len;
+
+    char *fpath;
+    int fpath_len;
     
     *((__s16 *)ri->data) = id;
     eevent->syscall_no = EEVENT_WRITE_NO;
     eevent->id = id++;
+
+    fpath = d_path(&arg0->f_path, __buf, STR_BUF_SIZE);
+    if((int) fpath < 0)
+    {
+        fpath = "(...)";
+        fpath_len = strlen(fpath);
+    }
+    else
+        fpath_len = strlen(fpath);
+    
     eevent->len =
         sprintf(eevent->params, "\"%.*s\",%p,%u,%p",
-                fname_len, fname, arg1, arg2, arg3);
+                fpath_len, fpath, arg1, arg2, arg3);
     
     elogk(eevent);
     
@@ -155,7 +192,7 @@ static int write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *re
 
 static int write_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-    static char buf[64];
+    static char buf[SBUF_SIZE];
     struct eevent_t *eevent = (struct eevent_t *)buf;
 
     /* negative id for return entry */
