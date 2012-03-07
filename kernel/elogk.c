@@ -92,8 +92,12 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
      * readable entry
      */
     if ((elog->w_off - elog->r_off) > ELOG_BUF_LEN)
-        elog->r_off = elog->w_off - ELOG_BUF_LEN
+    {
+        elog->r_off = elog->w_off & ~ELOG_BUF_LEN
             + get_next_entry(elog, __w_off, entry_len);
+        if (elog->r_off > elog->w_off)
+            elog->r_off -= ELOG_BUF_LEN
+    }
     
     if (buffer_tail >= entry_len)
         memcpy(elog->elogk_buf + __w_off, eevent, entry_len);
@@ -261,6 +265,6 @@ static int __init elog_init(void)
         goto out;
     
   out:
-        return ret;
+    return ret;
 }
 device_initcall(elog_init);
