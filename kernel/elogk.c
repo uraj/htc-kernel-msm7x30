@@ -40,9 +40,9 @@ DEFINE_ELOGK_SUIT(elogk2)
  */
 static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
 {
-	__u16 val;
+    __u16 val;
 
-	switch (ELOG_BUF_LEN - off)
+    switch (ELOG_BUF_LEN - off)
     {
         case 1:
             memcpy(&val, elog->elogk_buf + off, 1);
@@ -50,9 +50,9 @@ static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
             break;
         default:
             memcpy(&val, elog->elogk_buf + off, 2);
-	}
+    }
 
-	return sizeof(struct eevent_t) + val;
+    return sizeof(struct eevent_t) + val;
 }
 
 /*
@@ -61,17 +61,17 @@ static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
  */
 static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
 {
-	size_t count = 0;
+    size_t count = 0;
 
-	do
+    do
     {
-		size_t nr = get_entry_len(elog, off);
-		off = (off + nr) & ELOG_BUF_MASK;
-		count += nr;
-	}
+        size_t nr = get_entry_len(elog, off);
+        off = (off + nr) & ELOG_BUF_MASK;
+        count += nr;
+    }
     while (count < len);
 
-	return off;
+    return off;
 }
 
 /*
@@ -80,23 +80,26 @@ static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
  */
 static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
 {
-    size_t entry_len, buffer_tail, __w_off;
-
-    entry_len = sizeof(struct eevent_t) + eevent->len;
+    size_t entry_len, buffer_tail, __w_off, __r_off, __new_off, diff;
+    
     __w_off = (elog->w_off) & ELOG_BUF_MASK;
     buffer_tail = ELOG_BUF_LEN - __w_off;
-    
+    entry_len = sizeof(struct eevent_t) + eevent->len;
     elog->w_off += entry_len;
+    diff = elog->w_off - elog->r_off;
+    
     /*
      * if buffer overflows, pull the read pointer foward to the first
      * readable entry
      */
-    if ((elog->w_off - elog->r_off) > ELOG_BUF_LEN)
+    if (diff > ELOG_BUF_LEN)
     {
-        elog->r_off = elog->w_off & ~ELOG_BUF_LEN
-            + get_next_entry(elog, __w_off, entry_len);
-        if (elog->r_off > elog->w_off)
-            elog->r_off -= ELOG_BUF_LEN
+        __r_off = elog->r_off & ELOG_BUF_MASK;
+        __new_off = get_next_entry(elog, __r_off, diff & ELOG_BUF_MASK);
+        if(__new_off > __r_off)
+            elog->r_off += __new_off - __r_off;
+        else
+            elog->r_off += ELOG_BUF_LEN - __r_off + __new_off;
     }
     
     if (buffer_tail >= entry_len)
@@ -108,7 +111,7 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
                ((__u8 *)eevent) + buffer_tail,
                entry_len - buffer_tail);
     }
-    
+
     return;
 }
 
@@ -180,7 +183,7 @@ static ssize_t elog_read(struct file *file, char __user *buf,
             break;
         }
     }
-    
+
     ret = __count;
     /*
      * Since we are using a ring buffer, one read may need to be
