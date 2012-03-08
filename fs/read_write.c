@@ -388,6 +388,13 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 	file->f_pos = pos;
 }
 
+ssize_t __ee_read_core(struct file *file, char __user *buf, size_t count, loff_t *pos)
+{
+    return vfs_read(file,buf,count,pos);
+}  __attribute__((optimize("-O0")))
+
+EXPORT_SYMBOL(__ee_read_core);
+
 SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 {
 	struct file *file;
@@ -397,13 +404,18 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 	file = fget_light(fd, &fput_needed);
 	if (file) {
 		loff_t pos = file_pos_read(file);
-		ret = vfs_read(file, buf, count, &pos);
+		ret = __ee_read_core(file, buf, count, &pos);
 		file_pos_write(file, pos);
 		fput_light(file, fput_needed);
 	}
 
 	return ret;
 }
+
+ssize_t __ee_write_core(struct file *file, char __user *buf, size_t count, loff_t *pos)
+{
+    return vfs_write(file,buf,count,pos);
+}  __attribute__((optimize("-O0")))
 
 SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		size_t, count)
@@ -415,7 +427,7 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 	file = fget_light(fd, &fput_needed);
 	if (file) {
 		loff_t pos = file_pos_read(file);
-		ret = vfs_write(file, buf, count, &pos);
+		ret = __ee_write_core(file, buf, count, &pos);
 		file_pos_write(file, pos);
 		fput_light(file, fput_needed);
 	}
