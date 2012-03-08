@@ -412,7 +412,7 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 	return ret;
 }
 
-ssize_t __ee_write_core(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ssize_t __ee_write_core(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
     return vfs_write(file,buf,count,pos);
 }  __attribute__((optimize("-O0")))
