@@ -944,7 +944,7 @@ msmsdcc_pio_write(struct msmsdcc_host *host, char *buffer,
 	}
 #endif
 }
-EXPORT_SYMBOL(msmsdcc_pio_read);
+EXPORT_SYMBOL(msmsdcc_pio_write);
 
 static int
 msmsdcc_spin_on_status(struct msmsdcc_host *host, uint32_t mask, int maxspin)
