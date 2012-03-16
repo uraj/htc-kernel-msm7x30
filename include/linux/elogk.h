@@ -4,13 +4,17 @@
 #include <linux/types.h>
 #include <linux/time.h>
 
+#define ELOG_MMC      1
+#define ELOG_WLAN     2
+
+#define ELOGK_LOCK_FREE         0x1
+
 /**
  * 'elogk.h' contans the function prototypes and data structures
  * used to log energy events in the kernel.
  */
 
-struct eevent_t
-{
+struct eevent_t {
     __u16 len;              /* length of the payload */
     __u16 syscall_no;       /* system call number */
     __s16 id;       /* ID for the entry, pos:invoke, neg:ret */
@@ -24,6 +28,6 @@ struct eevent_t
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern void elogk(struct eevent_t *eevent);
+extern void elogk(struct eevent_t *eevent, int log, int flags);
 
 #endif

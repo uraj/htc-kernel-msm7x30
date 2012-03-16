@@ -11,8 +11,7 @@
 #define ELOG_BUF_LEN (1U << (CONFIG_ELOG_BUF_SHIFT - 1))
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
 
-struct elogk_suit
-{
+struct elogk_suit {
     struct mutex rw_mutex;
     struct mutex open_mutex;
     size_t w_off;
@@ -22,8 +21,7 @@ struct elogk_suit
 
 #define DEFINE_ELOGK_SUIT(NAME)                                 \
     static __u8 __buf_ ## NAME[ELOG_BUF_LEN];                   \
-    static struct elogk_suit NAME =                             \
-    {                                                           \
+    static struct elogk_suit NAME = {                           \
         .rw_mutex = __MUTEX_INITIALIZER(NAME .rw_mutex),        \
         .open_mutex = __MUTEX_INITIALIZER(NAME .open_mutex),    \
         .w_off = 0,                                             \
@@ -31,8 +29,8 @@ struct elogk_suit
         .elogk_buf = __buf_ ## NAME,                            \
     };
 
-DEFINE_ELOGK_SUIT(elogk1)
-DEFINE_ELOGK_SUIT(elogk2)
+DEFINE_ELOGK_SUIT(elogk_mmc)
+DEFINE_ELOGK_SUIT(elogk_wlan)
 
 /*
  * grabs the length of the payload of the next entry starting
@@ -42,8 +40,7 @@ static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
 {
     __u16 val;
 
-    switch (ELOG_BUF_LEN - off)
-    {
+    switch (ELOG_BUF_LEN - off) {
         case 1:
             memcpy(&val, elog->elogk_buf + off, 1);
             memcpy(((__u8 *) &val) + 1, elog->elogk_buf, 1);
@@ -63,13 +60,11 @@ static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
 {
     size_t count = 0;
 
-    do
-    {
+    do {
         size_t nr = get_entry_len(elog, off);
         off = (off + nr) & ELOG_BUF_MASK;
         count += nr;
-    }
-    while (count < len);
+    } while (count < len);
 
     return off;
 }
@@ -92,8 +87,7 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
      * if buffer overflows, pull the read pointer foward to the first
      * readable entry
      */
-    if (diff > ELOG_BUF_LEN)
-    {
+    if (diff > ELOG_BUF_LEN) {
         __r_off = elog->r_off & ELOG_BUF_MASK;
         __new_off = get_next_entry(elog, __r_off, diff & ELOG_BUF_MASK);
         if(__new_off > __r_off)
@@ -104,8 +98,7 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
     
     if (buffer_tail >= entry_len)
         memcpy(elog->elogk_buf + __w_off, eevent, entry_len);
-    else /* ring buffer reaches the end, write operation split into 2 memcpy */
-    {
+    else {/* ring buffer reaches the end, write operation split into 2 memcpy */
         memcpy(elog->elogk_buf + __w_off, eevent, buffer_tail);
         memcpy(elog->elogk_buf,
                ((__u8 *)eevent) + buffer_tail,
@@ -115,23 +108,31 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
     return;
 }
 
-void elogk(struct eevent_t *eevent)
+void elogk(struct eevent_t *eevent, int log, int flags)
 {
     struct elogk_suit *elog;
     
     ktime_get_ts(&eevent->etime);
 
-    if (mutex_trylock(&elogk1.rw_mutex))
-        elog = &elogk1;
-    else
-    {
-        mutex_lock(&elogk2.rw_mutex);
-        elog = &elogk2;
+    switch (log) {
+        case ELOG_MMC:
+            elog=&elogk_mmc;
+            break;
+        case ELOG_WLAN:
+            elog=&elogk_wlan;
+            break;
+        default:
+            return;
     }
 
-    elogk_write(eevent, elog);
-
-    mutex_unlock(&elog->rw_mutex);
+    if(flags & ELOGK_LOCK_FREE) {
+        mutex_lock(&elog->rw_mutex);
+        elogk_write(eevent, elog);
+        mutex_unlock(&elog->rw_mutex);
+    } else {
+        elogk_write(eevent, elog);
+    }
+    
     return;
 }
 EXPORT_SYMBOL(elogk);
@@ -172,13 +173,11 @@ static ssize_t elog_read(struct file *file, char __user *buf,
     
     mutex_lock(&elog->rw_mutex);
     
-    while (elog->r_off + __count < elog->w_off)
-    {
+    while (elog->r_off + __count < elog->w_off) {
         __r_off = (elog->r_off + __count) & ELOG_BUF_MASK;
         len = get_entry_len(elog, __r_off);
         __count += len;
-        if (__count > count)
-        {
+        if (__count > count) {
             __count -= len;
             break;
         }
@@ -192,15 +191,13 @@ static ssize_t elog_read(struct file *file, char __user *buf,
      */
     __r_off = elog->r_off & ELOG_BUF_MASK;
     len = min(__count, ELOG_BUF_LEN - __r_off);
-    if (copy_to_user(buf, elog->elogk_buf + __r_off, len))
-    {
+    if (copy_to_user(buf, elog->elogk_buf + __r_off, len)) {
         ret = -EFAULT;
         goto out;
     }
     
     if(len != __count)
-        if (copy_to_user(buf + len, elog->elogk_buf, __count - len))
-        {
+        if (copy_to_user(buf + len, elog->elogk_buf, __count - len)) {
             ret = -EFAULT;
             goto out;
         }
@@ -222,36 +219,33 @@ static int elog_release(struct inode *ignored, struct file *file)
     return 0;
 }
 
-static const struct file_operations elog_fops =
-{
+static const struct file_operations elog_fops = {
     .owner = THIS_MODULE,
     .read = elog_read,
     .open = elog_open,
     .release = elog_release,
 };
 
-static struct miscdevice elog1_dev =
-{
+static struct miscdevice elog_mmc_dev = {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog1",
+    .name = "elog_mmc",
     .fops = &elog_fops,
     .parent = NULL,
 };
 
-static struct miscdevice elog2_dev =
-{
+static struct miscdevice elog_wlan_dev = {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog2",
+    .name = "elog_wlan",
     .fops = &elog_fops,
     .parent = NULL,
 };
 
 static struct elogk_suit *get_elog_from_minor(int minor)
 {
-    if (minor == elog1_dev.minor)
-        return &elogk1;
-    if (minor == elog2_dev.minor)
-        return &elogk2;
+    if (minor == elog_mmc_dev.minor)
+        return &elogk_mmc;
+    if (minor == elog_wlan_dev.minor)
+        return &elogk_wlan;
     return NULL;
 }
 
@@ -259,11 +253,11 @@ static int __init elog_init(void)
 {
     int ret;
 
-    ret = misc_register(&elog1_dev);
+    ret = misc_register(&elog_mmc_dev);
     if (unlikely(ret))
         goto out;
 
-    ret = misc_register(&elog2_dev);
+    ret = misc_register(&elog_wlan_dev);
     if (unlikely(ret))
         goto out;
     
