@@ -38,11 +38,6 @@ config ELOG_BUF_SHIFT
 	  	     18 => 256K
                      17 => 128K
                      16 => 64K
-
-config ETRACE
-	tristate "Kernel energy event tracing"
-	depends on ELOG
-
 endmenu
 
 menu "General setup"
