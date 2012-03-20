@@ -5,7 +5,7 @@
 #include <linux/time.h>
 
 #define ELOG_MMC      1
-#define ELOG_WLAN     2
+#define ELOG_NET      2
 
 #define ELOGK_LOCK_FREE         0x1
 

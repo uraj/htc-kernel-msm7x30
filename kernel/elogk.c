@@ -30,7 +30,7 @@ struct elogk_suit {
     };
 
 DEFINE_ELOGK_SUIT(elogk_mmc)
-DEFINE_ELOGK_SUIT(elogk_wlan)
+DEFINE_ELOGK_SUIT(elogk_net)
 
 /*
  * grabs the length of the payload of the next entry starting
@@ -118,8 +118,8 @@ void elogk(struct eevent_t *eevent, int log, int flags)
         case ELOG_MMC:
             elog=&elogk_mmc;
             break;
-        case ELOG_WLAN:
-            elog=&elogk_wlan;
+        case ELOG_NET:
+            elog=&elogk_net;
             break;
         default:
             return;
@@ -233,9 +233,9 @@ static struct miscdevice elog_mmc_dev = {
     .parent = NULL,
 };
 
-static struct miscdevice elog_wlan_dev = {
+static struct miscdevice elog_net_dev = {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog_wlan",
+    .name = "elog_net",
     .fops = &elog_fops,
     .parent = NULL,
 };
@@ -244,8 +244,8 @@ static struct elogk_suit *get_elog_from_minor(int minor)
 {
     if (minor == elog_mmc_dev.minor)
         return &elogk_mmc;
-    if (minor == elog_wlan_dev.minor)
-        return &elogk_wlan;
+    if (minor == elog_net_dev.minor)
+        return &elogk_net;
     return NULL;
 }
 
@@ -257,7 +257,7 @@ static int __init elog_init(void)
     if (unlikely(ret))
         goto out;
 
-    ret = misc_register(&elog_wlan_dev);
+    ret = misc_register(&elog_net_dev);
     if (unlikely(ret))
         goto out;
     
