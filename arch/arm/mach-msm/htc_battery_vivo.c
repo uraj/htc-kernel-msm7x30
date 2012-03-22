@@ -1103,6 +1103,7 @@ static struct device_attribute htc_battery_attrs[] = {
 	HTC_BATTERY_ATTR(batt_vol),
 	HTC_BATTERY_ATTR(batt_temp),
 	HTC_BATTERY_ATTR(batt_current),
+    HTC_BATTERY_ATTR(eval_current),
 	HTC_BATTERY_ATTR(charging_source),
 	HTC_BATTERY_ATTR(charging_enabled),
 	HTC_BATTERY_ATTR(full_bat),
@@ -1120,6 +1121,7 @@ enum {
 	BATT_VOL,
 	BATT_TEMP,
 	BATT_CURRENT,
+	EVAL_CURRENT,
 	CHARGING_SOURCE,
 	CHARGING_ENABLED,
 	FULL_BAT,
@@ -1403,6 +1405,9 @@ dont_need_update:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.batt_current);
 		break;
+	case EVAL_CURRENT:
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
+			       htc_batt_info.rep.eval_current);
 	case CHARGING_SOURCE:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.charging_source);
