@@ -1408,6 +1408,7 @@ dont_need_update:
 	case EVAL_CURRENT:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.eval_current);
+		break;
 	case CHARGING_SOURCE:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			       htc_batt_info.rep.charging_source);
