@@ -31,17 +31,22 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->buffer;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
-
+	
 	event = trace_buffer_lock_reserve(buffer, TRACE_CTX,
 					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	entry->prev_pid			= prev->pid;
+#ifdef CONFIG_ETRACE
+	entry->prev_prio		= task_uid(prev);
+	entry->next_prio		= task_uid(next);
+#else
 	entry->prev_prio		= prev->prio;
-	entry->prev_state		= prev->state;
-	entry->next_pid			= next->pid;
 	entry->next_prio		= next->prio;
+#endif
+	entry->prev_pid			= prev->pid;
+	entry->next_pid			= next->pid;
+	entry->prev_state		= prev->state;
 	entry->next_state		= next->state;
 	entry->next_cpu	= task_cpu(next);
 

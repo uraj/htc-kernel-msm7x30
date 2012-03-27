@@ -109,10 +109,10 @@ FTRACE_ENTRY(funcgraph_exit, ftrace_graph_ret_entry,
  */
 #define FTRACE_CTX_FIELDS					\
 	__field(	unsigned int,	prev_pid	)	\
-	__field(	unsigned char,	prev_prio	)	\
+	__field(	unsigned int,	prev_prio	)	\
 	__field(	unsigned char,	prev_state	)	\
 	__field(	unsigned int,	next_pid	)	\
-	__field(	unsigned char,	next_prio	)	\
+	__field(	unsigned int,	next_prio	)	\
 	__field(	unsigned char,	next_state	)	\
 	__field(	unsigned int,	next_cpu	)
 

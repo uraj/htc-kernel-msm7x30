@@ -38,6 +38,11 @@ config ELOG_BUF_SHIFT
 	  	     18 => 256K
                      17 => 128K
                      16 => 64K
+config ETRACE
+	bool "use etrace to log context witch"
+	depends on CONTEXT_SWITCH_TRACER
+	default n
+
 endmenu
 
 menu "General setup"
