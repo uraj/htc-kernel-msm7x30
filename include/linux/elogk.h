@@ -4,10 +4,10 @@
 #include <linux/types.h>
 #include <linux/time.h>
 
-#define ELOG_MMC      1
-#define ELOG_NET      2
+#define ELOG_MMC            1
+#define ELOG_SYSCALL        2
 
-#define ELOGK_LOCK_FREE         0x1
+#define ELOGK_LOCK_FREE     (1U << 0)
 
 /**
  * 'elogk.h' contans the function prototypes and data structures

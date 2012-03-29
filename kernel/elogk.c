@@ -30,7 +30,7 @@ struct elogk_suit {
     };
 
 DEFINE_ELOGK_SUIT(elogk_mmc)
-DEFINE_ELOGK_SUIT(elogk_net)
+DEFINE_ELOGK_SUIT(elogk_syscall)
 
 /*
  * grabs the length of the payload of the next entry starting
@@ -118,8 +118,8 @@ void elogk(struct eevent_t *eevent, int log, int flags)
         case ELOG_MMC:
             elog=&elogk_mmc;
             break;
-        case ELOG_NET:
-            elog=&elogk_net;
+        case ELOG_SYSCALL:
+            elog=&elogk_syscall;
             break;
         default:
             return;
@@ -233,9 +233,9 @@ static struct miscdevice elog_mmc_dev = {
     .parent = NULL,
 };
 
-static struct miscdevice elog_net_dev = {
+static struct miscdevice elog_syscall_dev = {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog_net",
+    .name = "elog_syscall",
     .fops = &elog_fops,
     .parent = NULL,
 };
@@ -244,8 +244,8 @@ static struct elogk_suit *get_elog_from_minor(int minor)
 {
     if (minor == elog_mmc_dev.minor)
         return &elogk_mmc;
-    if (minor == elog_net_dev.minor)
-        return &elogk_net;
+    if (minor == elog_syscall_dev.minor)
+        return &elogk_syscall;
     return NULL;
 }
 
@@ -257,7 +257,7 @@ static int __init elog_init(void)
     if (unlikely(ret))
         goto out;
 
-    ret = misc_register(&elog_net_dev);
+    ret = misc_register(&elog_syscall_dev);
     if (unlikely(ret))
         goto out;
     
