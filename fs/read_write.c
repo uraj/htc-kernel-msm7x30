@@ -417,6 +417,8 @@ ssize_t __ee_write_core(struct file *file, const char __user *buf, size_t count,
     return vfs_write(file,buf,count,pos);
 }  __attribute__((optimize("-O0")))
 
+EXPORT_SYMBOL(_ee_write_core);
+
 SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		size_t, count)
 {
