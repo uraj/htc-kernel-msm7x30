@@ -1763,6 +1763,7 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 out:
 	return err;
 }
+EXPORT_SYMBOL(sys_recvfrom);
 
 /*
  *	Receive a datagram from a socket.
