@@ -8,7 +8,7 @@
 
 #include <asm/uaccess.h>
 
-#define ELOG_BUF_LEN (1U << (CONFIG_ELOG_BUF_SHIFT - 1))
+#define ELOG_BUF_LEN (1U << CONFIG_ELOG_BUF_SHIFT)
 #define ELOG_BUF_MASK (ELOG_BUF_LEN - 1)
 
 struct elogk_suit {
@@ -30,6 +30,7 @@ struct elogk_suit {
     };
 
 DEFINE_ELOGK_SUIT(elogk_mmc)
+DEFINE_ELOGK_SUIT(elogk_net)
 DEFINE_ELOGK_SUIT(elogk_syscall)
 
 /*
@@ -117,6 +118,9 @@ void elogk(struct eevent_t *eevent, int log, int flags)
     switch (log) {
         case ELOG_MMC:
             elog=&elogk_mmc;
+            break;
+        case ELOG_NET:
+            elog=&elogk_net;
             break;
         case ELOG_SYSCALL:
             elog=&elogk_syscall;
@@ -233,6 +237,13 @@ static struct miscdevice elog_mmc_dev = {
     .parent = NULL,
 };
 
+static struct miscdevice elog_net_dev = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "elog_net",
+    .fops = &elog_fops,
+    .parent = NULL,
+};
+
 static struct miscdevice elog_syscall_dev = {
     .minor = MISC_DYNAMIC_MINOR,
     .name = "elog_syscall",
@@ -244,6 +255,8 @@ static struct elogk_suit *get_elog_from_minor(int minor)
 {
     if (minor == elog_mmc_dev.minor)
         return &elogk_mmc;
+    if (minor == elog_net_dev.minor)
+        return &elogk_net;
     if (minor == elog_syscall_dev.minor)
         return &elogk_syscall;
     return NULL;
@@ -254,6 +267,10 @@ static int __init elog_init(void)
     int ret;
 
     ret = misc_register(&elog_mmc_dev);
+    if (unlikely(ret))
+        goto out;
+
+    ret = misc_register(&elog_net_dev);
     if (unlikely(ret))
         goto out;
 

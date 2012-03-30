@@ -5,7 +5,8 @@
 #include <linux/time.h>
 
 #define ELOG_MMC            1
-#define ELOG_SYSCALL        2
+#define ELOG_NET            2
+#define ELOG_SYSCALL        3
 
 #define ELOGK_LOCK_FREE     (1U << 0)
 
