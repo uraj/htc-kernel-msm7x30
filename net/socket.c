@@ -1705,8 +1705,8 @@ out_put:
 out:
 	return err;
 }
+EXPORT_SYMBOL(sys_sendto);
 
-EXPORT_SYMBOL(sys_sendto)
 /*
  *	Send a datagram down a socket.
  */
