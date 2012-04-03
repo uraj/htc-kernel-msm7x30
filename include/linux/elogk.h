@@ -16,12 +16,13 @@
  */
 
 struct eevent_t {
-    __u16 len;      /* length of the payload */
-    __u16 type;     /* system call number */
-    __s16 id;       /* ID for the entry, pos:invoke, neg:ret */
-    __u16 reserved; /* may used to store system loading current/voltage*/
+    __u16 len;             /* length of the payload */
+    __u16 type;            /* system call number */
+    __s16 id;              /* ID for the entry, pos:invoke, neg:ret */
+    /* identify the subject generating this log. maybe pid or uid */
+    __u16 belong;
     struct timespec etime;  /* timestamp for the entry */
-    char  params[0];        /* the entry's payload (syscall params) */
+    char payload[0];        /* the entry's payload (syscall params) */
 } __attribute__ ((packed));
 
 /**
