@@ -6,7 +6,7 @@
 
 #define ELOG_MMC            1
 #define ELOG_NET            2
-#define ELOG_SYSCALL        3
+#define ELOG_VFS            3
 
 #define ELOGK_LOCK_FREE     (1U << 0)
 
