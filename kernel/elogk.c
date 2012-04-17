@@ -113,8 +113,6 @@ void elogk(struct eevent_t *eevent, int log, int flags)
 {
     struct elogk_suit *elog;
     
-    ktime_get_ts(&eevent->etime);
-
     switch (log) {
         case ELOG_MMC:
             elog=&elogk_mmc;
@@ -131,9 +129,11 @@ void elogk(struct eevent_t *eevent, int log, int flags)
 
     if(flags & ELOGK_LOCK_FREE) {
         mutex_lock(&elog->rw_mutex);
+        ktime_get_ts(&eevent->etime);
         elogk_write(eevent, elog);
         mutex_unlock(&elog->rw_mutex);
     } else {
+        ktime_get_ts(&eevent->etime);
         elogk_write(eevent, elog);
     }
     
