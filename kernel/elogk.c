@@ -129,11 +129,13 @@ void elogk(struct eevent_t *eevent, int log, int flags)
 
     if(flags & ELOGK_LOCK_FREE) {
         mutex_lock(&elog->rw_mutex);
-        ktime_get_ts(&eevent->etime);
+        if ((flags & ELOGK_WITHOUT_TIME) == 0)
+            ktime_get_ts(&eevent->etime);
         elogk_write(eevent, elog);
         mutex_unlock(&elog->rw_mutex);
     } else {
-        ktime_get_ts(&eevent->etime);
+        if ((flags & ELOGK_WITHOUT_TIME) == 0)
+            ktime_get_ts(&eevent->etime);
         elogk_write(eevent, elog);
     }
     

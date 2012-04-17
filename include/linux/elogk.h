@@ -9,6 +9,7 @@
 #define ELOG_VFS            3
 
 #define ELOGK_LOCK_FREE     (1U << 0)
+#define ELOGK_WITHOUT_TIME  (2U << 0)
 
 /**
  * 'elogk.h' contans the function prototypes and data structures
@@ -22,7 +23,7 @@ struct eevent_t {
     /* identify the subject generating this log. maybe pid or uid */
     __u32 belong;
     struct timespec etime;  /* timestamp for the entry */
-    char payload[0];        /* the entry's payload (syscall params) */
+    __u8 payload[0];        /* the entry's payload (syscall params) */
 } __attribute__ ((packed));
 
 /**
