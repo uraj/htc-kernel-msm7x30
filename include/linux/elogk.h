@@ -4,7 +4,6 @@
 #include <linux/types.h>
 #include <linux/time.h>
 
-#define ELOG_MMC            1
 #define ELOG_NET            2
 #define ELOG_VFS            3
 

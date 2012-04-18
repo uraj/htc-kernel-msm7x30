@@ -29,7 +29,6 @@ struct elogk_suit {
         .elogk_buf = __buf_ ## NAME,                            \
     };
 
-DEFINE_ELOGK_SUIT(elogk_mmc)
 DEFINE_ELOGK_SUIT(elogk_net)
 DEFINE_ELOGK_SUIT(elogk_vfs)
 
@@ -114,9 +113,6 @@ void elogk(struct eevent_t *eevent, int log, int flags)
     struct elogk_suit *elog;
     
     switch (log) {
-        case ELOG_MMC:
-            elog=&elogk_mmc;
-            break;
         case ELOG_NET:
             elog=&elogk_net;
             break;
@@ -232,13 +228,6 @@ static const struct file_operations elog_fops = {
     .release = elog_release,
 };
 
-static struct miscdevice elog_mmc_dev = {
-    .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog_mmc",
-    .fops = &elog_fops,
-    .parent = NULL,
-};
-
 static struct miscdevice elog_net_dev = {
     .minor = MISC_DYNAMIC_MINOR,
     .name = "elog_net",
@@ -255,8 +244,6 @@ static struct miscdevice elog_vfs_dev = {
 
 static struct elogk_suit *get_elog_from_minor(int minor)
 {
-    if (minor == elog_mmc_dev.minor)
-        return &elogk_mmc;
     if (minor == elog_net_dev.minor)
         return &elogk_net;
     if (minor == elog_vfs_dev.minor)
@@ -267,10 +254,6 @@ static struct elogk_suit *get_elog_from_minor(int minor)
 static int __init elog_init(void)
 {
     int ret;
-
-    ret = misc_register(&elog_mmc_dev);
-    if (unlikely(ret))
-        goto out;
 
     ret = misc_register(&elog_net_dev);
     if (unlikely(ret))
