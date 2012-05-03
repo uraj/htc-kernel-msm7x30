@@ -73,13 +73,13 @@ static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
  * write the content of a log entry to the buff. caller must
  * hold elog->rw_mutex
  */
-static void elogk_write(struct elog_t *eevent, struct elogk_suit *elog)
+static void elogk_write(struct elog_t *entry, struct elogk_suit *elog)
 {
     size_t entry_len, buffer_tail, __w_off, __r_off, __new_off, diff;
     
     __w_off = (elog->w_off) & ELOG_BUF_MASK;
     buffer_tail = ELOG_BUF_LEN - __w_off;
-    entry_len = sizeof(struct elog_t) + eevent->len;
+    entry_len = sizeof(struct elog_t) + entry->len;
     elog->w_off += entry_len;
     diff = elog->w_off - elog->r_off;
     
@@ -97,18 +97,18 @@ static void elogk_write(struct elog_t *eevent, struct elogk_suit *elog)
     }
     
     if (buffer_tail >= entry_len)
-        memcpy(elog->elogk_buf + __w_off, eevent, entry_len);
+        memcpy(elog->elogk_buf + __w_off, entry, entry_len);
     else {/* ring buffer reaches the end, write operation split into 2 memcpy */
-        memcpy(elog->elogk_buf + __w_off, eevent, buffer_tail);
+        memcpy(elog->elogk_buf + __w_off, entry, buffer_tail);
         memcpy(elog->elogk_buf,
-               ((__u8 *)eevent) + buffer_tail,
+               ((__u8 *)entry) + buffer_tail,
                entry_len - buffer_tail);
     }
 
     return;
 }
 
-void elogk(struct elog_t *eevent, int log, int flags)
+void elogk(struct elog_t *entry, int log, int flags)
 {
     struct elogk_suit *elog;
     
@@ -126,13 +126,13 @@ void elogk(struct elog_t *eevent, int log, int flags)
     if(flags & ELOGK_LOCK_FREE) {
         mutex_lock(&elog->rw_mutex);
         if ((flags & ELOGK_WITHOUT_TIME) == 0)
-            ktime_get_ts(&eevent->etime);
-        elogk_write(eevent, elog);
+            ktime_get_ts(&entry->etime);
+        elogk_write(entry, elog);
         mutex_unlock(&elog->rw_mutex);
     } else {
         if ((flags & ELOGK_WITHOUT_TIME) == 0)
-            ktime_get_ts(&eevent->etime);
-        elogk_write(eevent, elog);
+            ktime_get_ts(&entry->etime);
+        elogk_write(entry, elog);
     }
     
     return;
