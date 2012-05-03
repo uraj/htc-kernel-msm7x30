@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/time.h>
 
-#define ELOG_NET            2
+#define ELOG_MMC            2
 #define ELOG_VFS            3
 
 #define ELOGK_LOCK_FREE     (1U << 0)
@@ -15,10 +15,9 @@
  * used to log energy events in the kernel.
  */
 
-struct eevent_t {
+struct elog_t {
     __u16 len;             /* length of the payload */
-    __u16 type;            /* system call number */
-    __s32 id;              /* ID for the entry, pos:invoke, neg:ret */
+    __u16 type;            /* type of this entry */
     /* identify the subject generating this log. maybe pid or uid */
     __u32 belong;
     struct timespec etime;  /* timestamp for the entry */
@@ -30,6 +29,6 @@ struct eevent_t {
  * thread-safe. It is the caller's responsibility to eliminate
  * data race. 
  */ 
-extern void elogk(struct eevent_t *eevent, int log, int flags);
+extern void elogk(struct elog_t *eevent, int log, int flags);
 
 #endif

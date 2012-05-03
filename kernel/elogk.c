@@ -29,7 +29,7 @@ struct elogk_suit {
         .elogk_buf = __buf_ ## NAME,                            \
     };
 
-DEFINE_ELOGK_SUIT(elogk_net)
+DEFINE_ELOGK_SUIT(elogk_mmc)
 DEFINE_ELOGK_SUIT(elogk_vfs)
 
 /*
@@ -49,7 +49,7 @@ static __u32 get_entry_len(struct elogk_suit *elog, size_t off)
             memcpy(&val, elog->elogk_buf + off, 2);
     }
 
-    return sizeof(struct eevent_t) + val;
+    return sizeof(struct elog_t) + val;
 }
 
 /*
@@ -73,13 +73,13 @@ static size_t get_next_entry(struct elogk_suit *elog, size_t off, size_t len)
  * write the content of a log entry to the buff. caller must
  * hold elog->rw_mutex
  */
-static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
+static void elogk_write(struct elog_t *eevent, struct elogk_suit *elog)
 {
     size_t entry_len, buffer_tail, __w_off, __r_off, __new_off, diff;
     
     __w_off = (elog->w_off) & ELOG_BUF_MASK;
     buffer_tail = ELOG_BUF_LEN - __w_off;
-    entry_len = sizeof(struct eevent_t) + eevent->len;
+    entry_len = sizeof(struct elog_t) + eevent->len;
     elog->w_off += entry_len;
     diff = elog->w_off - elog->r_off;
     
@@ -108,13 +108,13 @@ static void elogk_write(struct eevent_t *eevent, struct elogk_suit *elog)
     return;
 }
 
-void elogk(struct eevent_t *eevent, int log, int flags)
+void elogk(struct elog_t *eevent, int log, int flags)
 {
     struct elogk_suit *elog;
     
     switch (log) {
-        case ELOG_NET:
-            elog=&elogk_net;
+        case ELOG_MMC:
+            elog=&elogk_mmc;
             break;
         case ELOG_VFS:
             elog=&elogk_vfs;
@@ -228,9 +228,9 @@ static const struct file_operations elog_fops = {
     .release = elog_release,
 };
 
-static struct miscdevice elog_net_dev = {
+static struct miscdevice elog_mmc_dev = {
     .minor = MISC_DYNAMIC_MINOR,
-    .name = "elog_net",
+    .name = "elog_mmc",
     .fops = &elog_fops,
     .parent = NULL,
 };
@@ -244,8 +244,8 @@ static struct miscdevice elog_vfs_dev = {
 
 static struct elogk_suit *get_elog_from_minor(int minor)
 {
-    if (minor == elog_net_dev.minor)
-        return &elogk_net;
+    if (minor == elog_mmc_dev.minor)
+        return &elogk_mmc;
     if (minor == elog_vfs_dev.minor)
         return &elogk_vfs;
     return NULL;
@@ -255,7 +255,7 @@ static int __init elog_init(void)
 {
     int ret;
 
-    ret = misc_register(&elog_net_dev);
+    ret = misc_register(&elog_mmc_dev);
     if (unlikely(ret))
         goto out;
 
